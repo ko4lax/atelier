@@ -181,7 +181,9 @@ def session_page(session_id):
     with open(index_path) as f:
         html = f.read()
 
-    # Inject feedback form before </body>
+    # Inject feedback form before </body> and base tag for relative assets
+    base_tag = f'<base href="/session/{session_id}/">'
+    html = html.replace("</head>", base_tag + "\n</head>")
     feedback_html = f'''
 <!-- Feedback Section -->
 <section style="padding: 4rem 2rem; border-top: 1px solid rgba(255,255,255,0.07); max-width: 800px; margin: 0 auto;">
@@ -207,6 +209,15 @@ def session_page(session_id):
 '''
     html = html.replace("</body>", feedback_html + "\n</body>")
     return html
+
+
+@app.route("/session/<session_id>/<path:filename>")
+def session_static(session_id, filename):
+    """Serve static assets from a session directory (visual.html, JSON, MP3, PNG)."""
+    session_dir = os.path.join(OUTPUT_DIR, session_id)
+    if not os.path.isdir(session_dir):
+        return "Session not found", 404
+    return send_from_directory(session_dir, filename)
 
 
 @app.route("/feedback", methods=["POST"])
