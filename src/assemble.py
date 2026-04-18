@@ -4,6 +4,9 @@ Assembly module — combines all session data into a single polished HTML page.
 
 import json
 import os
+import shutil
+import colorsys
+from html import escape as html_escape
 
 
 def hex_from_palette(palette_json):
@@ -18,7 +21,6 @@ def hex_from_palette(palette_json):
     h_acc = p.get("accent_hue", (h_main + 180) % 360)
     sat = p.get("saturation", 50)
     bri = p.get("brightness", 80)
-    import colorsys
     def hsb(h, s, v):
         r, g, b = colorsys.hsv_to_rgb(h/360, s/100, v/100)
         return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
@@ -50,10 +52,18 @@ def generate_session_page(session_dir, session_id):
         palette = json.load(f)
 
     colors = hex_from_palette(palette)
-    personality = analysis.get("brand_personality", "creative")
-    tags = analysis.get("keywords", [])[:5]
-    color_meaning = narrative.get("color_meaning", {})
-
+    personality = html_escape(analysis.get("brand_personality", "creative"))
+    tags = [html_escape(t) for t in analysis.get("keywords", [])[:5]]
+    visual_direction = html_escape(analysis.get("visual_direction", "").split(",")[0] or "Creative Identity")
+    target_audience = html_escape(analysis.get("target_audience", ""))
+    competitive_position = html_escape(analysis.get("competitive_position", ""))
+    motion_style = html_escape(analysis.get("motion_style", "balanced"))
+    complexity_pct = int(analysis.get("complexity", 0.5) * 100)
+    energy_pct = int(analysis.get("energy", 0.5) * 100)
+    typo = analysis.get("typography", {})
+    heading_style = html_escape(typo.get("heading_style", "sans-serif").capitalize())
+    body_style = html_escape(typo.get("body_style", "sans-serif").capitalize())
+    weight_feel = html_escape(typo.get("weight_feel", "regular"))
     manifesto_exists = os.path.exists(os.path.join(base, "manifesto.mp3"))
     visual_exists = os.path.exists(os.path.join(base, "visual.html"))
     preview_exists = os.path.exists(os.path.join(base, "preview.png"))
@@ -62,20 +72,23 @@ def generate_session_page(session_dir, session_id):
 
     audio_html = ""
     if manifesto_exists:
+        manifesto_text = html_escape(narrative.get("manifesto", ""))
         audio_html = f'''
         <section class="audio-section">
           <h2>Brand Manifesto</h2>
-          <p class="manifesto-text">"{narrative.get("manifesto", "")}"</p>
+          <p class="manifesto-text">"{manifesto_text}"</p>
           <audio controls>
             <source src="manifesto.mp3" type="audio/mpeg">
             Your browser does not support audio.
           </audio>
         </section>'''
 
-    rationale = narrative.get("visual_rationale", "")
-    brand_story = narrative.get("brand_story", "")
-    taglines = narrative.get("taglines", [])
+    rationale = html_escape(narrative.get("visual_rationale", ""))
+    brand_story = html_escape(narrative.get("brand_story", ""))
+    taglines = [html_escape(t) for t in narrative.get("taglines", [])]
     social = narrative.get("social_voice", {})
+    social_tone = html_escape(social.get("tone", "Distinctive"))
+    social_example = html_escape(social.get("example_post", ""))
     color_meaning_str = narrative.get("color_meaning", {})
 
     palette_html = ""
@@ -94,13 +107,13 @@ def generate_session_page(session_dir, session_id):
     color_meaning_html = ""
     if color_meaning_str:
         for name, meaning in color_meaning_str.items():
-            hex_val = colors.get(name, "#888")
+            hex_val = colors.get(html_escape(name), "#888")
             color_meaning_html += f'''
             <div class="meaning-card">
               <div class="meaning-dot" style="background:{hex_val}"></div>
               <div>
-                <strong>{name.capitalize()}</strong>
-                <p>{meaning}</p>
+                <strong>{html_escape(name.capitalize())}</strong>
+                <p>{html_escape(meaning)}</p>
               </div>
             </div>'''
 
@@ -416,7 +429,7 @@ def generate_session_page(session_dir, session_id):
 <div class="hero">
   <div class="hero-left">
     <div class="hero-personality">{personality.upper()}</div>
-    <h1 class="hero-title">{analysis.get("visual_direction", "").split(",")[0] or "Creative Identity"}</h1>
+    <h1 class="hero-title">{visual_direction}</h1>
     <div class="hero-tags">{tags_html}</div>
     <p class="hero-story">{brand_story}</p>
   </div>
@@ -465,8 +478,8 @@ def generate_session_page(session_dir, session_id):
   <div class="section-label">Tone & Voice</div>
   <h2 class="section-title">Social Media Presence</h2>
   <div class="social-card">
-    <div class="social-tone">TONE: {social.get("tone", "Distinctive")}</div>
-    <blockquote class="social-example">{social.get("example_post", "")}</blockquote>
+    <div class="social-tone">TONE: {social_tone}</div>
+    <blockquote class="social-example">{social_example}</blockquote>
   </div>
 </section>
 
@@ -480,19 +493,19 @@ def generate_session_page(session_dir, session_id):
   <div class="meta-grid">
     <div class="meta-card">
       <div class="meta-label">Target Audience</div>
-      <div class="meta-value">{analysis.get("target_audience", "")}</div>
+      <div class="meta-value">{target_audience}</div>
     </div>
     <div class="meta-card">
       <div class="meta-label">Competitive Position</div>
-      <div class="meta-value">{analysis.get("competitive_position", "")}</div>
+      <div class="meta-value">{competitive_position}</div>
     </div>
     <div class="meta-card">
       <div class="meta-label">Motion Style</div>
-      <div class="meta-value">{analysis.get("motion_style", "balanced")} · Complexity {int(analysis.get("complexity", 0.5)*100)}% · Energy {int(analysis.get("energy", 0.5)*100)}%</div>
+      <div class="meta-value">{motion_style} · Complexity {complexity_pct}% · Energy {energy_pct}%</div>
     </div>
     <div class="meta-card">
       <div class="meta-label">Typography</div>
-      <div class="meta-value">{analysis.get("typography", {}).get("heading_style", "sans-serif").capitalize()} headings · {analysis.get("typography", {}).get("body_style", "sans-serif").capitalize()} body · {analysis.get("typography", {}).get("weight_feel", "regular")} weight</div>
+      <div class="meta-value">{heading_style} headings · {body_style} body · {weight_feel} weight</div>
     </div>
   </div>
 </section>
@@ -527,7 +540,6 @@ def generate_session_page(session_dir, session_id):
     # Sync to webroot (single source of truth — only this function syncs)
     webroot = os.path.join("/var/www/atelier", os.path.basename(base))
     os.makedirs(webroot, exist_ok=True)
-    import shutil
     sync_files = ["index.html", "visual.html", "palette.json", "analysis.json", "narrative.json"]
     if preview_exists:
         sync_files.append("preview.png")

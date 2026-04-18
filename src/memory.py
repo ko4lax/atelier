@@ -11,7 +11,9 @@ MEMORY_DIR = os.path.join(os.path.dirname(__file__), "..", "memory")
 
 
 def _memory_path(user_id):
-    return os.path.join(MEMORY_DIR, f"{user_id}.json")
+    # Sanitize: only allow alphanumeric, hyphens, underscores
+    safe_id = "".join(c for c in user_id if c.isalnum() or c in "-_") or "default"
+    return os.path.join(MEMORY_DIR, f"{safe_id}.json")
 
 
 def load_memory(user_id):
@@ -56,6 +58,9 @@ def save_session(user_id, session_data):
 
     # Add session
     memory["sessions"].append(session_data)
+    # Prune to last 50 sessions to prevent unbounded file growth
+    if len(memory["sessions"]) > 50:
+        memory["sessions"] = memory["sessions"][-50:]
 
     # Update preferences from this session's analysis
     analysis = session_data.get("analysis", {})

@@ -12,27 +12,24 @@ BUG FIXES:
 
 import os
 import json
+import colorsys
 
 
 VISUAL_MODES = {
     "minimal": {
         "description": "Geometric compositions with clean lines, negative space, and controlled motion",
-        "template": "minimal",
     },
     "organic": {
         "description": "Flowing curves, noise-driven patterns, breathing animations, natural textures",
-        "template": "organic",
     },
     "bold": {
         "description": "High contrast, particle systems, dynamic motion, explosive energy",
-        "template": "bold",
     },
 }
 
 
 def hue_to_hex(hue, sat=70, bri=85):
     """Convert HSB to hex color string."""
-    import colorsys
     h = hue / 360.0
     s = sat / 100.0
     v = bri / 100.0
@@ -46,7 +43,6 @@ def _hex_to_hsb(hex_color):
     r = int(hex_color[0:2], 16) / 255.0
     g = int(hex_color[2:4], 16) / 255.0
     b = int(hex_color[4:6], 16) / 255.0
-    import colorsys
     H, S, V = colorsys.rgb_to_hsv(r, g, b)
     return {"h": round(H * 360), "s": round(S * 100), "b": round(V * 100)}
 
@@ -294,7 +290,6 @@ def _bold_template(colors, analysis):
 </head><body><script>
 p5.disableFriendlyErrors = true;
 const HSB = {json.dumps(colors["hsb"])};
-const RAW = {json.dumps(colors["raw"])};
 const N = {num_particles};
 const HUE_ARRAY = {json.dumps(hue_array)};
 let particles = [];

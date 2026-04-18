@@ -53,17 +53,21 @@ def get_kimi_client():
 
 def kimi_call(client, system_prompt, user_content, model="kimi-k2.5"):
     """Call Kimi K2.5 and return the response text."""
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_content},
-        ],
-        temperature=0.6,
-        max_tokens=2048,
-        extra_body={"thinking": {"type": "disabled"}},
-    )
-    return response.choices[0].message.content
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.6,
+            max_tokens=2048,
+            extra_body={"thinking": {"type": "disabled"}},
+        )
+        return response.choices[0].message.content
+    except Exception as e:
+        print(f"[Atelier] Kimi API error: {e}")
+        raise
 
 
 def analyze_brief(client, brief, memory_prefs=None):
@@ -138,17 +142,25 @@ def run_atelier(brief, user_id="default", session_id=None):
 
     # Step 1: Analyze
     print("[Atelier] Analyzing brief...")
-    analysis = analyze_brief(client, brief, prefs)
+    try:
+        analysis = analyze_brief(client, brief, prefs)
+    except Exception as e:
+        print(f"[Atelier] Analysis failed: {e}")
+        return None
     print(f"[Atelier] Personality: {analysis.get('brand_personality', '?')}")
 
     # Step 2: Generate visuals
     print("[Atelier] Generating visuals...")
     visual_info = generate_visual(analysis, output_dir)
-    print(f"[Atelier] Visual generated: {visual_info.get('file', '?')}")
+    print(f"[Atelier] Visual generated: {visual_info.get('mode', '?')}")
 
     # Step 3: Generate narrative
     print("[Atelier] Generating narrative...")
-    narrative = generate_narrative(client, analysis, visual_info.get("description", ""))
+    try:
+        narrative = generate_narrative(client, analysis, visual_info.get("description", ""))
+    except Exception as e:
+        print(f"[Atelier] Narrative generation failed: {e}")
+        return None
     print(f"[Atelier] Taglines: {len(narrative.get('taglines', []))}")
 
     # Step 4: TTS narration
@@ -166,7 +178,7 @@ def run_atelier(brief, user_id="default", session_id=None):
     with open(os.path.join(output_dir, "palette.json"), "w") as f:
         json.dump(analysis.get("palette", {}), f, indent=2)
 
-    # Step 6: Assemble full session page (handles webroot sync)
+    # Assemble full session page (handles webroot sync)
     print("[Atelier] Assembling session page...")
     index_path = generate_session_page(output_dir, session_id)
     print(f"[Atelier] Session page: {index_path}")
