@@ -7,7 +7,7 @@ ANALYSIS_PROMPT = """You are a creative director and brand strategist. Analyze t
 Output ONLY valid JSON (no markdown, no explanation). Use this exact schema:
 
 {
-  "brand_personality": "one of: minimal, organic, bold, playful, luxurious, technical, warm, edgy",
+  "brand_personality": "one of: minimal, organic, bold, playful, luxurious, technical, warm, edgy, glitch, ink",
   "visual_direction": "short description of visual approach",
   "palette": {
     "primary_hue": 0-360,

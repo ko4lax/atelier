@@ -25,6 +25,12 @@ VISUAL_MODES = {
     "bold": {
         "description": "High contrast, particle systems, dynamic motion, explosive energy",
     },
+    "glitch": {
+        "description": "Digital distortion, scanlines, chromatic aberration, broken signals",
+    },
+    "ink": {
+        "description": "Ink drops, watercolor diffusion, sumi-e strokes, organic bleeding",
+    },
 }
 
 
@@ -360,10 +366,260 @@ function keyPressed() {{
 </script></body></html>'''
 
 
+def _glitch_template(colors, analysis):
+    """Glitch p5.js visual — scanlines, chromatic aberration, digital distortion."""
+    complexity = analysis.get("complexity", 0.5)
+    energy = analysis.get("energy", 0.5)
+
+    num_slices = int(8 + complexity * 25)
+    glitch_freq = 0.02 + energy * 0.08
+
+    bg = colors["hsb"]["bg"]
+    primary = colors["hsb"]["primary"]
+    accent = colors["hsb"]["accent"]
+    secondary = colors["hsb"]["secondary"]
+
+    return f'''<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Atelier — Glitch</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+<style>html,body{{margin:0;padding:0;overflow:hidden;background:{colors["hex"]["bg"]};}}</style>
+</head><body><script>
+p5.disableFriendlyErrors = true;
+const HSB = {json.dumps(colors["hsb"])};
+const N = {num_slices};
+const GFREQ = {glitch_freq};
+let scanlines = [];
+let glitchTimer = 0;
+let glitchActive = false;
+let glitchStrength = 0;
+let blocks = [];
+
+function setup() {{
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB, 360, 100, 100, 100);
+  noStroke();
+  // Scanlines
+  for (let y = 0; y < height; y += 3) {{
+    scanlines.push(y);
+  }}
+  // Glitch blocks
+  for (let i = 0; i < N; i++) {{
+    blocks.push({{
+      x: random(width), y: random(height),
+      w: random(30, 200), h: random(4, 30),
+      hue: random([{primary["h"]}, {accent["h"]}, {secondary["h"]}]),
+      offset: 0, alpha: random(20, 60),
+    }});
+  }}
+}}
+
+function draw() {{
+  background({bg["h"]}, {bg["s"]}, {bg["b"]});
+  let t = millis() * 0.001;
+
+  // Random glitch trigger
+  glitchTimer++;
+  if (glitchTimer > 60 / (GFREQ * 100) && !glitchActive) {{
+    glitchActive = true;
+    glitchStrength = random(0.3, 1.0);
+    glitchTimer = 0;
+  }}
+  if (glitchActive) {{
+    glitchStrength *= 0.92;
+    if (glitchStrength < 0.05) glitchActive = false;
+  }}
+
+  // Glitch blocks — horizontal slices that shift
+  for (let b of blocks) {{
+    push();
+    let ox = glitchActive ? (noise(b.y * 0.01, t) - 0.5) * 80 * glitchStrength : sin(t * 0.3 + b.x * 0.01) * 3;
+    let sat = {primary["s"]};
+    let bri = {primary["b"]};
+    fill(b.hue, sat, bri, b.alpha * (glitchActive ? 1.5 : 0.6));
+    rect(b.x + ox, b.y, b.w, b.h);
+    // Chromatic aberration — offset red/blue channels
+    if (glitchActive) {{
+      fill((b.hue + 120) % 360, sat + 20, bri, b.alpha * 0.3 * glitchStrength);
+      rect(b.x + ox + 4 * glitchStrength, b.y + 1, b.w, b.h - 2);
+      fill((b.hue + 240) % 360, sat + 20, bri, b.alpha * 0.3 * glitchStrength);
+      rect(b.x + ox - 4 * glitchStrength, b.y - 1, b.w, b.h + 2);
+    }}
+    pop();
+  }}
+
+  // Scanlines
+  stroke({bg["h"]}, {bg["s"]}, min(100, {bg["b"]} + 8), 15);
+  strokeWeight(1);
+  for (let y of scanlines) {{
+    line(0, y, width, y);
+  }}
+  noStroke();
+
+  // Random pixel noise burst during glitch
+  if (glitchActive) {{
+    let numPixels = int(50 * glitchStrength);
+    for (let i = 0; i < numPixels; i++) {{
+      let px = random(width);
+      let py = random(height);
+      let ph = random([{primary["h"]}, {accent["h"]}, {secondary["h"]}, {bg["h"] + 180}]);
+      fill(ph, {primary["s"]}, {primary["b"]}, random(30, 80));
+      rect(px, py, random(1, 6), random(1, 3));
+    }}
+  }}
+
+  // Horizontal distortion bar
+  if (glitchActive && random() < 0.4) {{
+    let gy = random(height);
+    let gh = random(2, 20);
+    fill({accent["h"]}, {accent["s"]}, {accent["b"]}, 20 * glitchStrength);
+    rect(0, gy, width, gh);
+  }}
+}}
+
+function windowResized() {{ resizeCanvas(windowWidth, windowHeight); }}
+function keyPressed() {{ if (key === 's') saveCanvas('atelier-glitch', 'png'); }}
+</script></body></html>'''
+
+
+def _ink_template(colors, analysis):
+    """Ink p5.js visual — ink drops, watercolor diffusion, sumi-e strokes."""
+    complexity = analysis.get("complexity", 0.5)
+    energy = analysis.get("energy", 0.5)
+
+    num_drops = int(5 + complexity * 15)
+    spread_speed = 0.3 + energy * 1.5
+
+    bg = colors["hsb"]["bg"]
+    primary = colors["hsb"]["primary"]
+    accent = colors["hsb"]["accent"]
+    secondary = colors["hsb"]["secondary"]
+    raw = colors["raw"]
+
+    return f'''<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>Atelier — Ink</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js"></script>
+<style>html,body{{margin:0;padding:0;overflow:hidden;background:{colors["hex"]["bg"]};}}</style>
+</head><body><script>
+p5.disableFriendlyErrors = true;
+const HSB = {json.dumps(colors["hsb"])};
+const NDROPS = {num_drops};
+const SPEED = {spread_speed};
+const HUES = [{raw["primary_hue"]}, {raw["accent_hue"]}, {raw["secondary_hue"]}];
+let drops = [];
+let strokes = [];
+
+function setup() {{
+  createCanvas(windowWidth, windowHeight);
+  colorMode(HSB, 360, 100, 100, 100);
+  background({bg["h"]}, {bg["s"]}, {bg["b"]});
+  noStroke();
+
+  // Initial ink drops
+  for (let i = 0; i < NDROPS; i++) {{
+    drops.push({{
+      x: random(width * 0.1, width * 0.9),
+      y: random(height * 0.1, height * 0.9),
+      radius: random(5, 15),
+      maxRadius: random(40, 150),
+      hue: random(HUES),
+      sat: {primary["s"]},
+      bri: {primary["b"]},
+      speed: random(0.2, 1) * SPEED,
+      age: 0,
+      wobble: random(TWO_PI),
+    }});
+  }}
+
+  // Sumi-e strokes
+  for (let i = 0; i < 3; i++) {{
+    let pts = [];
+    let sx = random(width * 0.2, width * 0.8);
+    let sy = random(height * 0.2, height * 0.8);
+    let len = int(random(20, 60));
+    for (let j = 0; j < len; j++) {{
+      pts.push({{
+        x: sx + j * random(-3, 8),
+        y: sy + j * random(-5, 5) + noise(j * 0.1) * 30,
+      }});
+    }}
+    strokes.push({{ pts: pts, hue: random(HUES), alpha: random(15, 35) }});
+  }}
+}}
+
+function draw() {{
+  // Slow fade (watercolor wash)
+  noStroke();
+  fill({bg["h"]}, {bg["s"]}, {bg["b"]}, 0.5);
+  rect(0, 0, width, height);
+
+  // Draw ink drops — expanding rings with noise
+  for (let d of drops) {{
+    if (d.radius < d.maxRadius) {{
+      d.radius += d.speed * (1 - d.radius / d.maxRadius);
+      d.age++;
+      let alpha = map(d.radius, 0, d.maxRadius, 50, 5);
+      // Multiple concentric rings with wobble
+      for (let r = d.radius; r > d.radius * 0.3; r -= 2) {{
+        let wobbleR = r + noise(d.x * 0.01, d.y * 0.01, d.age * 0.02) * 8;
+        let h = (d.hue + noise(r * 0.05, d.age * 0.01) * 20 - 10 + 360) % 360;
+        noFill();
+        stroke(h, d.sat, d.bri, alpha);
+        strokeWeight(random(0.5, 2));
+        ellipse(d.x + sin(d.wobble + d.age * 0.01) * 3, d.y, wobbleR * 2, wobbleR * 1.8);
+      }}
+    }}
+    // Ink bleed particles
+    if (d.radius < d.maxRadius * 0.8) {{
+      for (let i = 0; i < 3; i++) {{
+        let angle = random(TWO_PI);
+        let dist = d.radius + random(-5, 15);
+        let px = d.x + cos(angle) * dist;
+        let py = d.y + sin(angle) * dist;
+        let h = (d.hue + random(-10, 10) + 360) % 360;
+        fill(h, d.sat - 10, d.bri + 5, random(5, 20));
+        noStroke();
+        ellipse(px, py, random(1, 4), random(1, 4));
+      }}
+    }}
+  }}
+
+  // Draw sumi-e strokes
+  noFill();
+  for (let s of strokes) {{
+    strokeWeight(random(1, 4));
+    stroke(s.hue, {primary["s"]}, {primary["b"]}, s.alpha);
+    beginShape();
+    for (let p of s.pts) {{
+      curveVertex(p.x + random(-0.5, 0.5), p.y + random(-0.5, 0.5));
+    }}
+    endShape();
+  }}
+}}
+
+function mousePressed() {{
+  // Add new drop on click
+  drops.push({{
+    x: mouseX, y: mouseY,
+    radius: 2, maxRadius: random(40, 120),
+    hue: random(HUES), sat: {primary["s"]}, bri: {primary["b"]},
+    speed: random(0.3, 1) * SPEED,
+    age: 0, wobble: random(TWO_PI),
+  }});
+}}
+
+function windowResized() {{ resizeCanvas(windowWidth, windowHeight); }}
+function keyPressed() {{ if (key === 's') saveCanvas('atelier-ink', 'png'); }}
+</script></body></html>'''
+
+
 TEMPLATES = {
     "minimal": _minimal_template,
     "organic": _organic_template,
     "bold": _bold_template,
+    "glitch": _glitch_template,
+    "ink": _ink_template,
 }
 
 
@@ -384,6 +640,8 @@ def generate_visual(analysis, output_dir):
         "bold": "bold",
         "edgy": "bold",
         "playful": "bold",
+        "glitch": "glitch",
+        "ink": "ink",
     }
     if weight_feel in ("bold", "edgy"):
         mode = "bold"

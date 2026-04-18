@@ -42,9 +42,12 @@ def load_memory(user_id):
                 "technical": 0.5,
                 "warm": 0.5,
                 "edgy": 0.5,
+                "glitch": 0.5,
+                "ink": 0.5,
             },
             "complexity": 0.5,
             "energy": 0.5,
+            "mood_weights": {"warm": 0.5, "cool": 0.5, "neutral": 0.5},
             "motion_prefs": {"slow-drift": 0.5, "breathing": 0.5, "dynamic": 0.5, "static": 0.5},
         },
     }
@@ -78,9 +81,11 @@ def save_session(user_id, session_data):
                 prefs[pref_key].append(int(hue_val))
             prefs[pref_key] = prefs[pref_key][-10:]
 
-    # Update style weights (moving average)
+    # Update style weights (moving average) — add missing styles dynamically
     personality = analysis.get("brand_personality", "")
-    if personality in prefs["style_weights"]:
+    if personality:
+        if personality not in prefs["style_weights"]:
+            prefs["style_weights"][personality] = 0.5
         # Boost the chosen style, slightly decay others
         for style in prefs["style_weights"]:
             if style == personality:
@@ -106,6 +111,17 @@ def save_session(user_id, session_data):
                 prefs["motion_prefs"][m] = min(1.0, prefs["motion_prefs"][m] + 0.15)
             else:
                 prefs["motion_prefs"][m] = max(0.0, prefs["motion_prefs"][m] - 0.02)
+
+    # Update mood weights from palette mood (warm/cool/neutral)
+    mood = palette.get("mood", "")
+    if mood and "mood_weights" in prefs:
+        if mood not in prefs["mood_weights"]:
+            prefs["mood_weights"][mood] = 0.5
+        for m in prefs["mood_weights"]:
+            if m == mood:
+                prefs["mood_weights"][m] = min(1.0, prefs["mood_weights"][m] + 0.15)
+            else:
+                prefs["mood_weights"][m] = max(0.0, prefs["mood_weights"][m] - 0.02)
 
     # Save
     with open(_memory_path(user_id), "w") as f:
@@ -135,13 +151,15 @@ def update_preferences(user_id, feedback):
     complexity_adj = feedback.get("complexity_adjustment", 0)
     energy_adj = feedback.get("energy_adjustment", 0)
 
-    # Adjust style weights strongly
+    # Adjust style weights strongly — add missing styles dynamically
     for style in liked:
-        if style in prefs["style_weights"]:
-            prefs["style_weights"][style] = min(1.0, prefs["style_weights"][style] + 0.2)
+        if style not in prefs["style_weights"]:
+            prefs["style_weights"][style] = 0.5
+        prefs["style_weights"][style] = min(1.0, prefs["style_weights"][style] + 0.2)
     for style in disliked:
-        if style in prefs["style_weights"]:
-            prefs["style_weights"][style] = max(0.0, prefs["style_weights"][style] - 0.2)
+        if style not in prefs["style_weights"]:
+            prefs["style_weights"][style] = 0.5
+        prefs["style_weights"][style] = max(0.0, prefs["style_weights"][style] - 0.2)
 
     # Add preferred hues
     for hue in preferred_hues:
@@ -182,6 +200,10 @@ def get_preferences(user_id):
     # Find dominant motion
     dominant_motion = max(prefs["motion_prefs"], key=prefs["motion_prefs"].get)
 
+    # Find dominant mood
+    mood_weights = prefs.get("mood_weights", {"warm": 0.5, "cool": 0.5, "neutral": 0.5})
+    dominant_mood = max(mood_weights, key=mood_weights.get)
+
     return {
         "dominant_style": dominant_style,
         "style_weights": prefs["style_weights"],
@@ -191,5 +213,7 @@ def get_preferences(user_id):
         "avg_complexity": round(prefs["complexity"], 2),
         "avg_energy": round(prefs["energy"], 2),
         "preferred_motion": dominant_motion,
+        "preferred_mood": dominant_mood,
+        "mood_weights": mood_weights,
         "sessions_count": len(memory["sessions"]),
     }

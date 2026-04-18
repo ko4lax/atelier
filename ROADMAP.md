@@ -12,6 +12,7 @@
 | Phase 2: Core Features | ✅ Complete | Memory, narrative, TTS |
 | Phase 3: Output & Polish | ✅ Complete | HTML brand guide, assembly, webroot sync |
 | Phase 3.5: Bug Fixes | ✅ Complete | 15 bugs fixed, code review passed |
+| Phase 3.6: Feature Push | ✅ Complete | Web UI, feedback loop, glitch+ink modes, mood tracking |
 | Phase 4: Demo & Submission | 🔴 Not started | Deadline: May 3, 2026 (15 days) |
 
 ---
@@ -52,9 +53,10 @@
 - [ ] Structured logging (replace print statements)
 
 ### P2: Feature Expansion
-- [ ] **Web UI** — Flask/FastAPI frontend so users don't need CLI
-- [ ] **Feedback loop** — wire `update_preferences()` into a rating UI (thumbs up/down per output)
-- [ ] **More visual modes** — data-driven, typographic, photographic
+- [x] **Web UI** — Flask frontend with brief form, results, feedback
+- [x] **Feedback loop** — wired `update_preferences()` into rating UI (love/like/meh/dislike)
+- [x] **Non-generic visual modes** — glitch (digital distortion), ink (watercolor diffusion)
+- [x] **Mood tracking** — warm/cool/neutral tracked from palette in memory
 - [ ] **Export formats** — PDF brand guide, Figma tokens, CSS variables
 - [ ] **Prompt versioning** — track prompt schema changes so old memory stays compatible
 
@@ -98,9 +100,11 @@
 
 ## Key Metrics
 
-- **Codebase:** 5 Python files, ~1,050 LOC
+- **Codebase:** 6 Python files, ~1,300 LOC
+- **Visual modes:** 5 (minimal, organic, bold, glitch, ink)
 - **Sessions generated:** 12
 - **Bugs fixed:** 15 (across 2 fix rounds)
+- **Features shipped:** Web UI, feedback loop, mood tracking, 2 new visual modes
 - **Cost per generation:** ~$0.01-0.05
 - **Deadline:** May 3, 2026
 - **Prize pool:** $10k + $3.5k (Main) / $3.5k + $1k (Kimi)
