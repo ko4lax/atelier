@@ -15,6 +15,19 @@ from datetime import datetime
 from prompts import ANALYSIS_PROMPT, NARRATIVE_PROMPT
 from memory import load_memory, save_session, get_preferences
 from visual import generate_visual
+from assemble import generate_session_page
+
+
+def generate_tts(text, output_path):
+    """Generate TTS audio from manifesto text using gTTS."""
+    try:
+        from gtts import gTTS
+        tts = gTTS(text=text, lang="en", slow=False)
+        tts.save(output_path)
+        return output_path
+    except Exception as e:
+        print(f"[Atelier] TTS failed: {e}")
+        return None
 
 
 def get_kimi_client():
@@ -138,7 +151,14 @@ def run_atelier(brief, user_id="default", session_id=None):
     narrative = generate_narrative(client, analysis, visual_info.get("description", ""))
     print(f"[Atelier] Taglines: {len(narrative.get('taglines', []))}")
 
-    # Step 4: Save outputs
+    # Step 4: TTS narration
+    print("[Atelier] Generating TTS narration...")
+    mp3_path = os.path.join(output_dir, "manifesto.mp3")
+    tts_result = generate_tts(narrative.get("manifesto", ""), mp3_path)
+    if tts_result:
+        print(f"[Atelier] TTS saved: {mp3_path}")
+
+    # Save outputs
     with open(os.path.join(output_dir, "analysis.json"), "w") as f:
         json.dump(analysis, f, indent=2)
     with open(os.path.join(output_dir, "narrative.json"), "w") as f:
@@ -146,16 +166,12 @@ def run_atelier(brief, user_id="default", session_id=None):
     with open(os.path.join(output_dir, "palette.json"), "w") as f:
         json.dump(analysis.get("palette", {}), f, indent=2)
 
-    # Sync to webroot
-    import shutil
-    webroot_dir = os.path.join("/var/www/atelier", session_id)
-    os.makedirs(webroot_dir, exist_ok=True)
-    for fname in ["analysis.json", "narrative.json", "palette.json", "visual.html"]:
-        src = os.path.join(output_dir, fname)
-        if os.path.exists(src):
-            shutil.copy2(src, webroot_dir)
+    # Step 6: Assemble full session page (handles webroot sync)
+    print("[Atelier] Assembling session page...")
+    index_path = generate_session_page(output_dir, session_id)
+    print(f"[Atelier] Session page: {index_path}")
 
-    # Step 5: Save to memory
+    # Save to memory
     print("[Atelier] Saving to memory...")
     save_session(user_id, {
         "session_id": session_id,
@@ -166,7 +182,8 @@ def run_atelier(brief, user_id="default", session_id=None):
     })
 
     print(f"\n[Atelier] Done! Output at: {output_dir}")
-    print(f"[Atelier] View at: https://atelier.ko4lax.dev/{session_id}/visual.html")
+    print(f"[Atelier] View full brand guide: https://atelier.ko4lax.dev/{session_id}/index.html")
+    print(f"[Atelier] View visual: https://atelier.ko4lax.dev/{session_id}/visual.html")
 
     return {
         "session_id": session_id,

@@ -75,15 +75,15 @@ def save_session(user_id, session_data):
             else:
                 prefs["style_weights"][style] = max(0.0, prefs["style_weights"][style] - 0.02)
 
-    # Update complexity/energy (moving average)
+    # Update complexity/energy (exponential moving average, alpha=0.3)
+    # EMA gives ~70% weight to recent sessions, avoids calcification
     complexity = analysis.get("complexity")
     energy = analysis.get("energy")
+    alpha = 0.3
     if complexity is not None:
-        n = len(memory["sessions"])
-        prefs["complexity"] = (prefs["complexity"] * (n - 1) + complexity) / n
+        prefs["complexity"] = round(prefs["complexity"] * (1 - alpha) + complexity * alpha, 4)
     if energy is not None:
-        n = len(memory["sessions"])
-        prefs["energy"] = (prefs["energy"] * (n - 1) + energy) / n
+        prefs["energy"] = round(prefs["energy"] * (1 - alpha) + energy * alpha, 4)
 
     # Update motion prefs
     motion = analysis.get("motion_style", "")
@@ -95,6 +95,62 @@ def save_session(user_id, session_data):
                 prefs["motion_prefs"][m] = max(0.0, prefs["motion_prefs"][m] - 0.02)
 
     # Save
+    with open(_memory_path(user_id), "w") as f:
+        json.dump(memory, f, indent=2)
+
+
+def update_preferences(user_id, feedback):
+    """Apply explicit user feedback to preferences.
+    
+    Args:
+        user_id: User identifier
+        feedback: dict with optional keys:
+            - liked_styles: list of style names they liked
+            - disliked_styles: list of style names they disliked
+            - preferred_hues: list of hue numbers they prefer
+            - avoided_hues: list of hue numbers they dislike
+            - complexity_adjustment: float -0.5 to +0.5 adjustment
+            - energy_adjustment: float -0.5 to +0.5 adjustment
+    """
+    memory = load_memory(user_id)
+    prefs = memory["preferences"]
+
+    liked = feedback.get("liked_styles", [])
+    disliked = feedback.get("disliked_styles", [])
+    preferred_hues = feedback.get("preferred_hues", [])
+    avoided_hues = feedback.get("avoided_hues", [])
+    complexity_adj = feedback.get("complexity_adjustment", 0)
+    energy_adj = feedback.get("energy_adjustment", 0)
+
+    # Adjust style weights strongly
+    for style in liked:
+        if style in prefs["style_weights"]:
+            prefs["style_weights"][style] = min(1.0, prefs["style_weights"][style] + 0.2)
+    for style in disliked:
+        if style in prefs["style_weights"]:
+            prefs["style_weights"][style] = max(0.0, prefs["style_weights"][style] - 0.2)
+
+    # Add preferred hues
+    for hue in preferred_hues:
+        if hue not in prefs["preferred_hues"]:
+            prefs["preferred_hues"].append(int(hue))
+    prefs["preferred_hues"] = prefs["preferred_hues"][-10:]
+
+    # Add avoided hues
+    for hue in avoided_hues:
+        if hue not in prefs["avoided_hues"]:
+            prefs["avoided_hues"].append(int(hue))
+    prefs["avoided_hues"] = prefs["avoided_hues"][-10:]
+
+    # Complexity/energy adjustments (direct feedback overrides)
+    prefs["complexity"] = max(0, min(1, prefs["complexity"] + complexity_adj))
+    prefs["energy"] = max(0, min(1, prefs["energy"] + energy_adj))
+
+    # Track feedback
+    if "feedback_history" not in memory:
+        memory["feedback_history"] = []
+    memory["feedback_history"].append({"date": datetime.now().isoformat(), "feedback": feedback})
+
     with open(_memory_path(user_id), "w") as f:
         json.dump(memory, f, indent=2)
 
