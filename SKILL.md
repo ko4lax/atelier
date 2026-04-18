@@ -28,7 +28,13 @@ Takes a brand/product brief → generates a complete brand identity system:
 
 ```bash
 cd /root/atelier
+
+# CLI mode
 python3 src/atelier.py --brief "premium coffee brand for remote workers" --user koala
+
+# Web UI mode
+python3 src/web.py
+# → opens at http://localhost:5000
 ```
 
 ## Architecture
@@ -38,9 +44,10 @@ atelier/
   src/
     atelier.py       # Main orchestrator
     prompts.py       # Kimi K2.5 prompt templates (analysis + narrative)
-    visual.py        # p5.js generative art engine (3 modes: minimal/organic/bold)
+    visual.py        # p5.js generative art engine (5 modes: minimal/organic/bold/glitch/ink)
     assemble.py      # HTML brand guide assembly + webroot sync
-    memory.py        # Persistent aesthetic preference learning
+    memory.py        # Persistent aesthetic preference learning + mood tracking
+    web.py           # Flask web UI with feedback loop
   memory/
     {user_id}.json   # Per-user preference weights + session history
   output/
